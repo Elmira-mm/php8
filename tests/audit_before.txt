@@ -1,0 +1,79 @@
+== Адреса застосунку: http://localhost:8001 (API: http://localhost:8003/api.php)
+== CSRF-токен у формах не знайдено — застосунок без CSRF-захисту
+
+--- Крок 1. SQL-ін'єкції (пошук за sku) ---
+[PASS] index.php?sku=  payload: ' OR '1'='1  -> «не знайдено»
+[PASS] index.php?sku=  payload: ' UNION SELECT 1,2,3,4,5-- -  -> «не знайдено»
+[PASS] index.php?sku=  payload: '; DROP TABLE products;--   -> «не знайдено»
+[PASS] таблиця products ціла після спроби DROP TABLE
+[SKIP] API без пошуку за sku
+
+--- Крок 2. XSS (поле name товару) ---
+[FAIL] index.php: XSS через назву товару
+       -> в атрибуті onsubmit після розкодування HTML-сутностей: return confirm('Видалити «');alert('XSSMARK');//»?');
+в атрибуті onsubmit після розкодування HTML-сутностей: return confirm('Видалити «<img src=x onerror=alert('XSSMARK')>»?');
+в атрибуті onsubmit після розкодування HTML-сутностей: return confirm('Видалити «<script>alert('XSSMARK')</script>»?');
+[PASS] edit.php?id=7: payload AUDITXA-1 екрановано
+[PASS] edit.php?id=8: payload AUDITXB-2 екрановано
+[PASS] edit.php?id=9: payload AUDITXC-3 екрановано
+
+--- Крок 3. CSRF ---
+[FAIL] delete.php без токена і без сесії
+       -> HTTP 302 — товар видалено сторонньою формою
+[FAIL] delete.php з хибним токеном
+       -> HTTP 302 — товар видалено
+[FAIL] delete.php з порожнім токеном без сесії
+       -> HTTP 302 — товар видалено
+[FAIL] add.php без токена
+       -> HTTP 302 — товар створено сторонньою формою
+[FAIL] edit.php без токена
+       -> HTTP 302 — товар змінено сторонньою формою
+[SKIP] форма поповнення залишку (restock.php) відсутня
+[FAIL] API POST без токена
+       -> HTTP 201 — API приймає запис без CSRF-токена
+[FAIL] api_add.php без токена
+       -> HTTP 200 — AJAX-ендпоінт приймає запис без CSRF-токена
+[SKIP] API без видачі CSRF-токена
+
+--- API з практикуму №6 (restock — доменна дія варіанта) ---
+[FAIL] API restock «з чужої форми» без токена
+       -> HTTP 200, залишок тепер 1005 (було 5) — залишок змінено стороннім сайтом
+[SKIP] API restock з токеном (API не видає CSRF-токенів)
+[FAIL] API restock: quantity 99999999999
+       -> HTTP 500 (очікувалось 400)
+[PASS] API restock: quantity 0 -> 400
+[PASS] API restock: неіснуючий id -> 404
+[FAIL] API POST: name як масив
+       -> HTTP 201, у базу записано товар із назвою «Array»
+[FAIL] API POST: назва 300 символів
+       -> HTTP 500 (очікувалось 400)
+[FAIL] API POST: тіло — JSON-скаляр
+       -> HTTP 500 (очікувалось 400)
+[FAIL] API POST: action[]=x
+       -> HTTP 400, відповідь: {"success":false,"error":"Невідома дія action=Array."}
+[PASS] API DELETE -> 405 (метод не підтримується контрактом)
+[FAIL] API: заголовок X-Content-Type-Options
+       -> відсутній — браузер може «вгадувати» тип вмісту
+
+--- Крок 4/5. Видалення за GET-посиланням ---
+[PASS] GET delete.php?id=20 -> HTTP 302, товар не видалено
+
+--- Крок 4/6. Валідація на сервері та «сирі» помилки ---
+[PASS] порожні поля відхилено на сервері (HTTP 200 + повідомлення)
+[PASS] від'ємна ціна відхилена (HTTP 200), запису немає
+[FAIL] назва 300 символів
+       -> HTTP 200, у відповіді «сирий» текст помилки: Fatal error
+[FAIL] ціна 1e12 (поза DECIMAL)
+       -> HTTP 200, у відповіді «сирий» текст помилки: Fatal error
+[FAIL] залишок 99999999999 (поза INT)
+       -> HTTP 200, у відповіді «сирий» текст помилки: Fatal error
+[FAIL] SKU довший за 20 символів
+       -> HTTP 200, у відповіді «сирий» текст помилки: Fatal error
+[FAIL] назва з некоректними байтами UTF-8
+       -> HTTP 200, у відповіді: Fatal error
+[FAIL] index.php?sku[]=x (параметр-масив)
+       -> на сторінці видно: Array to string
+
+Прибирання: тимчасових товарів AUDIT* залишилось: 0
+
+ПІДСУМОК: PASS=13  FAIL=21  SKIP=4

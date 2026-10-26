@@ -1,0 +1,57 @@
+== Адреса застосунку: http://localhost:8000 (API: http://localhost:8000/api.php)
+
+--- Крок 1. SQL-ін'єкції (пошук за sku) ---
+[PASS] index.php?sku=  payload: ' OR '1'='1  -> «не знайдено»
+[PASS] index.php?sku=  payload: ' UNION SELECT 1,2,3,4,5-- -  -> «не знайдено»
+[PASS] index.php?sku=  payload: '; DROP TABLE products;--   -> «не знайдено»
+[PASS] таблиця products ціла після спроби DROP TABLE
+[PASS] API ?sku=  payload: ' OR '1'='1  -> 404
+
+--- Крок 2. XSS (поле name товару) ---
+[PASS] index.php: payload-и у назві не стають кодом (HTML, атрибути, inline-скрипти)
+[PASS] edit.php?id=229404: payload AUDITXA-1 екрановано
+[PASS] edit.php?id=229405: payload AUDITXB-2 екрановано
+[PASS] edit.php?id=229406: payload AUDITXC-3 екрановано
+
+--- Крок 3. CSRF ---
+[PASS] delete.php без токена і без сесії -> 403, товар на місці
+[PASS] delete.php з хибним токеном -> 403, товар на місці
+[PASS] delete.php з порожнім токеном без сесії -> 403, товар на місці
+[PASS] add.php без токена -> 403, товар не створено
+[PASS] edit.php без токена -> 403, товар не змінено
+[PASS] restock.php без токена -> 403
+[PASS] restock.php зі старим/хибним токеном -> 403
+[PASS] restock.php з дійсним токеном -> 302 (поповнення працює)
+[PASS] API POST без токена -> 403
+[PASS] api_add.php (AJAX-форма) без токена -> 403
+[PASS] API POST з дійсним X-CSRF-Token -> 201
+
+--- API з практикуму №6 (restock — доменна дія варіанта) ---
+[PASS] API restock «з чужої форми» (urlencoded, без cookie і токена) -> 403, залишок не змінено
+[PASS] API restock з дійсним токеном -> 200, залишок 5 -> 10
+[PASS] API restock: quantity 99999999999 -> 400 (без переповнення INT)
+[PASS] API restock: quantity 0 -> 400
+[PASS] API restock: неіснуючий id -> 404
+[PASS] API POST: name як масив -> 400, нічого не записано
+[PASS] API POST: назва 300 символів -> 400 (помилка валідації)
+[PASS] API POST: тіло — JSON-скаляр -> 400
+[PASS] API POST: action[]=x -> 400 без відлуння «Array»
+[PASS] API DELETE -> 405 (метод не підтримується контрактом)
+[PASS] API: заголовок X-Content-Type-Options: nosniff
+
+--- Крок 4/5. Видалення за GET-посиланням ---
+[PASS] GET delete.php?id=229414 -> HTTP 405, товар не видалено
+
+--- Крок 4/6. Валідація на сервері та «сирі» помилки ---
+[PASS] порожні поля відхилено на сервері (HTTP 200 + повідомлення)
+[PASS] від'ємна ціна відхилена (HTTP 200), запису немає
+[PASS] назва 300 символів -> HTTP 200, помилки валідації без витоку деталей
+[PASS] ціна 1e12 (поза DECIMAL) -> HTTP 200, помилки валідації без витоку деталей
+[PASS] залишок 99999999999 (поза INT) -> HTTP 200, помилки валідації без витоку деталей
+[PASS] SKU довший за 20 символів -> HTTP 200, помилки валідації без витоку деталей
+[PASS] назва з некоректними байтами UTF-8 -> HTTP 200, відхилено без витоку деталей
+[PASS] index.php?sku[]=x не показує технічних помилок PHP
+
+Прибирання: тимчасових товарів AUDIT* залишилось: 0
+
+ПІДСУМОК: PASS=40  FAIL=0  SKIP=0

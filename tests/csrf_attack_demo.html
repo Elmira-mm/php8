@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Демонстрація CSRF-атаки (лише для перевірки власного застосунку)</title>
+</head>
+<body style="font-family: sans-serif; max-width: 640px; margin: 40px auto;">
+    <h1>«Шкідлива» сторінка</h1>
+    <p>
+        Це сторінка зловмисника на <b>іншому порту</b> (інше джерело), яка без відома користувача
+        надсилає запит до вашого застосунку на <code>http://localhost:8000</code>.
+    </p>
+    <p>
+        Як запустити: у папці <code>tests</code> виконайте <code>python3 -m http.server 9000</code>,
+        а в іншому терміналі — застосунок (<code>php -S localhost:8000</code>), відкрийте
+        <code>http://localhost:9000/csrf_attack_demo.html</code> і натисніть кнопку.
+    </p>
+    <ul>
+        <li><b>Без CSRF-захисту</b> товар видаляється / залишок змінюється.</li>
+        <li><b>З CSRF-захистом</b> (lab8) застосунок відповідає «403 Запит відхилено»:
+            зловмисник не знає токена, який лежить у сесії користувача.</li>
+    </ul>
+
+    <!-- id підставте існуючий у вашому каталозі -->
+    <form method="post" action="http://localhost:8000/delete.php">
+        <input type="hidden" name="id" value="1">
+        <button type="submit">«Виграйте приз!» (насправді — видалити товар id=1)</button>
+    </form>
+
+    <br>
+
+    <form method="post" action="http://localhost:8000/restock.php">
+        <input type="hidden" name="id" value="1">
+        <input type="hidden" name="quantity" value="99999">
+        <button type="submit">«Отримайте знижку» (насправді — поповнити залишок товару id=1 на 99999)</button>
+    </form>
+</body>
+</html>
